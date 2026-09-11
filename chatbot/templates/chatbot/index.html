@@ -1,0 +1,406 @@
+{% load static %}
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Telekom Churn Tahmini & Chatbot Platformu</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="{% static 'chatbot/style.css' %}?v=1.4">
+    <!-- Chart.js CDN for graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Top Navbar -->
+    <nav class="app-navbar">
+        <div class="nav-brand">
+            <span class="brand-logo">⚡</span>
+            <span class="brand-name">Bundle AI Analytics</span>
+        </div>
+        <div class="nav-metrics">
+            <div class="system-status">
+                <span class="status-dot"></span>
+                <span>Sistem Aktif • Churn Analiz</span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="app-sidebar">
+            <button class="sidebar-btn active" data-view="dashboard-view">
+                <span>📊</span> Grafikler & Analiz
+            </button>
+            <button class="sidebar-btn" data-view="chatbot-view">
+                <span>💬</span> RAG ve Chatbot
+            </button>
+            <button class="sidebar-btn" data-view="bundle-view">
+                <span>🎁</span> Bundle AI Kampanya
+            </button>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="app-content">
+            <!-- SECTION 1: DASHBOARD & GRAPHS -->
+            <section id="dashboard-view" class="view-section active">
+                <!-- Metrics Row -->
+                <div class="metrics-grid">
+                    <div class="dashboard-card">
+                        <span class="card-title">Toplam Müşteri Sayısı</span>
+                        <span class="card-value" id="card-total">0</span>
+                        <span class="card-trend">Genel Portföy</span>
+                    </div>
+                    <div class="dashboard-card">
+                        <span class="card-title">Aktif Abone Sayısı</span>
+                        <span class="card-value" id="card-active">0</span>
+                        <span class="card-trend" style="color:var(--success-color);">Aralık 2025 Dönemi</span>
+                    </div>
+                    <div class="dashboard-card">
+                        <span class="card-title">Yüksek Riskli Müşteri Oranı</span>
+                        <span class="card-value" id="card-high-risk" style="color:var(--danger-color);">%0</span>
+                        <span class="card-trend" style="color:var(--danger-color);">Hemen Eylem Gerekiyor</span>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="charts-grid">
+                    <!-- 0. En Çok Şikayet Alınan Kategoriler -->
+                    <div class="chart-card wide-card">
+                        <div class="chart-header">📣 En Çok Şikayet Alınan Kategoriler
+                            <span class="metrics-badge">Tüm Dönem · Şikayet Kaydı</span>
+                        </div>
+                        <div class="chart-desc">Hangi konularda en çok şikayet alındığını gösterir. <strong>Fatura</strong> kategorisi 583K kayıtla ilk sırada — churn modelinde de en güçlü sinyal. Tooltip'te etkilenen benzersiz müşteri sayısı görünür.</div>
+                        <div class="chart-wrapper" style="height:280px">
+                            <canvas id="complaintCatChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 1. Churn Risk Dağılımı -->
+                    <div class="chart-card">
+                        <div class="chart-header">Müşteri Churn Risk Dağılımı</div>
+                        <div class="chart-desc">Aktif müşterilerin modelin tahmin ettiği <strong>churn riskine</strong> göre dağılımı. Düşük/Orta/Yüksek üç dilim. Yüksek risk = önümüzdeki 3 ayda ayrılma ihtimali yüksek.</div>
+                        <div class="chart-wrapper">
+                            <canvas id="riskDistChart"></canvas>
+                        </div>
+                    </div>
+
+
+                    <!-- 2. Precision-Recall Eğrisi -->
+                    <div class="chart-card">
+                        <div class="chart-header">Precision-Recall Eğrisi</div>
+                        <div class="chart-desc"><strong>Mavi çizgi</strong> = modelimiz, <strong>kırmızı kesikli</strong> = rastgele tahmin (%3.8). Mavi ne kadar yukarıdaysa model o kadar iyi. Kısıtlı bütçeyle kaç churner yakalandığını optimize eder.</div>
+                        <div class="chart-wrapper">
+                            <canvas id="prChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 3. Aylık Aktif Müşteri ve Değişim Hızı -->
+                    <div class="chart-card wide-card">
+                        <div class="chart-header">Aylık Aktif Müşteri Hareketi</div>
+                        <div class="chart-desc"><strong>Sol:</strong> Her ay fatura kesen aktif müşteri sayısı — 200K'dan 77.5K'ya geriledi. <strong>Sağ:</strong> Aylık kayıp hızı (%). Kırmızı bar = o ay önceki aya göre müşteri azaldı; yüzde küçüldükçe kayıp hızı yavaşlıyor.</div>
+                        <div class="chart-grid-2col">
+                            <div class="chart-wrapper-half">
+                                <canvas id="activeCustomersChart"></canvas>
+                            </div>
+                            <div class="chart-wrapper-half">
+                                <canvas id="changeRateChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. Segmentlere Göre Kayıp Analizi -->
+                    <div class="chart-card wide-card">
+                        <div class="chart-header">Segmentlere Göre Kayıp Analizi</div>
+                        <div class="chart-desc">Kaybedilen müşteriler üç segmente ayrıldı: <strong>Doğrudan ayrılan</strong> (hiç dönmedi, 107K kişi), <strong>Bir kez dönen</strong> (14K), <strong>Birden fazla dönen</strong> (625). Sol: kişi sayısı · Orta: ayrılmadan önceki ortalama fatura · Sağ: toplam gelir kaybı (₺).</div>
+                        <div class="chart-grid-3col">
+                            <div class="chart-wrapper-third">
+                                <canvas id="segmentCountChart"></canvas>
+                            </div>
+                            <div class="chart-wrapper-third">
+                                <canvas id="segmentBillChart"></canvas>
+                            </div>
+                            <div class="chart-wrapper-third">
+                                <canvas id="segmentLossChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5. Son Aktif Olduğu Aya Göre Kayıp Sayısı ve Gelir Kaybı -->
+                    <div class="chart-card wide-card">
+                        <div class="chart-header">Son Aktif Ay Kohort Analizi</div>
+                        <div class="chart-desc">Kaybedilen her müşteri "son aktif olduğu aya" göre gruplandı. <strong>Sol:</strong> O ay ayrılan müşteri sayısı — erken aylarda yüksek, son aylarda düşük (daha az müşteri var). <strong>Sağ:</strong> O kohorttaki müşterilerin toplam tahmini gelir kaybı — eskiden ayrılanlar daha uzun süre abone kaldığından kayıp büyük.</div>
+                        <div class="chart-grid-2col">
+                            <div class="chart-wrapper-half">
+                                <canvas id="cohortCountChart"></canvas>
+                            </div>
+                            <div class="chart-wrapper-half">
+                                <canvas id="cohortLossChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 6. Model Performans Metrikleri -->
+                    <div class="chart-card wide-card metrics-panel">
+                        <div class="chart-header">🎯 Model Performans Metrikleri
+                            <span class="metrics-badge">Test Seti · Eylül 2025 Snapshot</span>
+                        </div>
+                        <div class="metrics-main-grid">
+                            <!-- Sol: Olasılık Metrikleri -->
+                            <div class="metrics-block">
+                                <div class="metrics-block-title">Olasılık Metrikleri</div>
+                                <div class="metric-item">
+                                    <div class="metric-label">PR-AUC (Average Precision)</div>
+                                    <div class="metric-bar-row">
+                                        <div class="metric-bar-track">
+                                            <div class="metric-bar-fill" id="bar-prauc" style="width:0%"></div>
+                                        </div>
+                                        <span class="metric-value" id="val-prauc">—</span>
+                                    </div>
+                                    <div class="metric-desc">Precision-Recall eğrisi altındaki alan. Dengesiz veri setlerinde ROC-AUC'a göre daha güvenilir.</div>
+                                </div>
+                                <div class="metric-item">
+                                    <div class="metric-label">ROC-AUC</div>
+                                    <div class="metric-bar-row">
+                                        <div class="metric-bar-track">
+                                            <div class="metric-bar-fill metric-bar-roc" id="bar-rocauc" style="width:0%"></div>
+                                        </div>
+                                        <span class="metric-value" id="val-rocauc">—</span>
+                                    </div>
+                                    <div class="metric-desc">Rastgele tahmin = 0.50. Modelimiz %68.1 → müşterileri risk sırasına göre sıralamada anlamlı güç.</div>
+                                </div>
+                                <div class="metric-item">
+                                    <div class="metric-label">Brier Score</div>
+                                    <div class="metric-bar-row">
+                                        <div class="metric-bar-track">
+                                            <div class="metric-bar-fill metric-bar-brier" id="bar-brier" style="width:0%"></div>
+                                        </div>
+                                        <span class="metric-value" id="val-brier">—</span>
+                                    </div>
+                                    <div class="metric-desc">Olasılık kalibrasyonu kalitesi. 0 = mükemmel, 1 = en kötü. Düşük değer iyidir.</div>
+                                </div>
+                                <div class="metric-item">
+                                    <div class="metric-label">Churn Prevalansı (Test)</div>
+                                    <div class="metric-bar-row">
+                                        <div class="metric-bar-track">
+                                            <div class="metric-bar-fill metric-bar-prev" id="bar-prev" style="width:0%"></div>
+                                        </div>
+                                        <span class="metric-value" id="val-prev">—</span>
+                                    </div>
+                                    <div class="metric-desc">Test setindeki gerçek churn oranı. Her ~26 müşteriden 1'i ayrılıyor.</div>
+                                </div>
+                            </div>
+
+                            <!-- Sağ: Top-K Hedefleme -->
+                            <div class="metrics-block">
+                                <div class="metrics-block-title">Hedefleme Performansı (Top-K Lift)</div>
+                                <div class="topk-table-wrap">
+                                    <table class="topk-table" id="topk-table">
+                                        <thead>
+                                            <tr>
+                                                <th>En Riskli %K</th>
+                                                <th>Seçilen</th>
+                                                <th>Yakalanan Churn</th>
+                                                <th>Precision</th>
+                                                <th>Recall</th>
+                                                <th>Lift ↑</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="topk-tbody">
+                                            <!-- JS ile doldurulacak -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="metric-desc" style="margin-top:10px">
+                                    <strong>Lift</strong> = Modelin rastgele seçime kıyasla kaç kat daha iyi churn yakaladığı.
+                                    En riskli %1'i hedeflersek rastgeleye göre <span id="lift-highlight" style="color:#10b981;font-weight:700">—</span>× daha iyi sonuç alırız.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 7. Metodoloji Açıklaması -->
+                    <div class="chart-card wide-card methodology-panel">
+                        <div class="chart-header">📋 Churn Analizi Nasıl Yapıldı?</div>
+                        <div class="methodology-grid">
+                            <div class="method-block">
+                                <div class="method-icon">📅</div>
+                                <div class="method-title">Aylık Snapshot Yaklaşımı</div>
+                                <div class="method-body">
+                                    Churn tahmini <strong>ay bazlıdır</strong>. Her "snapshot" bir referans ayına tekabül eder.
+                                    O ayda aktif olan tüm müşteriler değerlendirme kapsamına alınır.
+                                    <br><br>
+                                    <span class="method-tag">Eğitim:</span> Ara. 2023 · Mar. 2024 · Haz. 2024<br>
+                                    <span class="method-tag">Doğrulama:</span> Aralık 2024<br>
+                                    <span class="method-tag">Test:</span> Eylül 2025
+                                </div>
+                            </div>
+                            <div class="method-block">
+                                <div class="method-icon">🔭</div>
+                                <div class="method-title">Gözlem & Churn Tanımı</div>
+                                <div class="method-body">
+                                    <strong>Gözlem penceresi:</strong> Snapshot ayı dahil geriye dönük <strong>6 ay</strong> — finansal davranış ve şikayet geçmişi.<br><br>
+                                    <strong>Churn tanımı:</strong> Snapshot sonrası <strong>3 ay içinde</strong> hiç aktif olmayan müşteri "ayrıldı" (churn=1) olarak etiketlenir.
+                                </div>
+                            </div>
+                            <div class="method-block">
+                                <div class="method-icon">⚙️</div>
+                                <div class="method-title">Model & Özellikler</div>
+                                <div class="method-body">
+                                    <strong>Logistic Regression</strong> (class_weight=balanced) — dengesiz churn oranını (%3.8) telafi etmek için.<br><br>
+                                    <strong>14 özellik:</strong> Ortalama fatura (3m/6m), kullanım değişimi, aktif ay sayısı, şikayet sayısı ve çeşitliliği, destek mesajı sayısı, yaş, şehir.
+                                </div>
+                            </div>
+                            <div class="method-block">
+                                <div class="method-icon">🎯</div>
+                                <div class="method-title">Neden Bu Metrikler?</div>
+                                <div class="method-body">
+                                    Accuracy yerine <strong>PR-AUC ve Lift</strong> kullanılıyor çünkü veri seti çok dengesiz (%96.2 aktif / %3.8 churn). Doğru metrik, belirlenen bütçeyle <em>en fazla churn müşteriyi yakalamayı</em> ölçer.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 2: RAG CHATBOT -->
+            <section id="chatbot-view" class="view-section">
+                <div class="chat-view-container">
+                    <!-- Chat Header -->
+                    <div class="chat-header-panel">
+                        <div class="bot-title">
+                            <h2>Destek Asistanı</h2>
+                            <div class="bot-status" style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">
+                                Aktif • RAG + Churn Sorguları
+                            </div>
+                        </div>
+                        <button id="clear-btn" class="clear-btn">Sohbeti Temizle</button>
+                    </div>
+
+                    <!-- Chat Messages -->
+                    <div id="messages" class="messages-area">
+                        <!-- Will be populated dynamically by JS -->
+                    </div>
+
+                    <!-- Chat Input Form -->
+                    <div class="input-area">
+                        <form id="chat-form" class="input-form">
+                            {% csrf_token %}
+                            <div class="input-wrapper">
+                                <textarea
+                                    id="message"
+                                    class="message-input"
+                                    maxlength="1000"
+                                    placeholder="Sorunuzu buraya yazın..."
+                                    rows="1"
+                                    required
+                                ></textarea>
+                            </div>
+                            <button type="submit" class="send-btn">
+                                <span>Gönder</span>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 3: BUNDLE AI KAMPANYA -->
+            <section id="bundle-view" class="view-section">
+                <div class="bundle-container">
+                    <div class="search-card">
+                        <h2>Otomatik Kampanya & İndirim Öneri Arayüzü</h2>
+                        <p style="color:var(--text-secondary); font-size:0.9rem; margin-top:4px;">
+                            Sorgulamak istediğiniz müşteri ID'sini girerek churn riskini öğrenin ve sadakat indirimini tanımlayın.
+                        </p>
+                        <form id="bundle-form" class="search-row" style="margin-top:16px;">
+                            <input
+                                type="number"
+                                id="bundle-customer-id"
+                                class="search-input"
+                                placeholder="Müşteri ID girin (Örn: 34, 12, 15)..."
+                                required
+                            >
+                            <button type="submit" class="search-btn">Sorgula ve Öner</button>
+                        </form>
+                    </div>
+
+                    <!-- Results Profile -->
+                    <div id="bundle-result-card" class="result-card">
+                        <div class="result-header">
+                            <div class="result-profile">
+                                <span class="result-id" id="res-id">Müşteri ID: 34</span>
+                                <span class="result-meta" id="res-meta">Konum: Istanbul • Yaş: 74</span>
+                            </div>
+                            <span class="risk-badge high" id="res-badge">Yüksek Risk</span>
+                        </div>
+
+                        <!-- Churn Probability Bar -->
+                        <div class="progress-container">
+                            <div class="progress-label">
+                                <span id="res-prob-text">Churn İhtimali</span>
+                                <strong id="res-prob">%77.2</strong>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill high" id="res-fill" style="width: 77.2%;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Detail Sub-cards -->
+                        <div class="detail-section">
+                            <!-- Spending Table -->
+                            <div class="detail-table-card">
+                                <div class="detail-table-title">Son Harcama Geçmişi (Eylül 2025 ve Öncesi)</div>
+                                <table class="detail-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Ay</th>
+                                            <th>Fatura</th>
+                                            <th>İnternet</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="res-table-body">
+                                        <!-- Dynamically generated -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Recommended Campaign -->
+                            <div class="action-card high-action">
+                                <div class="action-title" id="res-action-title">🎁 Önerilen Kampanya: <span style="color:#f59e0b; margin-left:4px;">Sadakat Koruma Paketi</span></div>
+                                <div class="action-desc" id="res-action-desc">
+                                    Müşteri ID 34 için Kayıp (Churn) Riskiniz %77.2'dir ve bu değer Yüksek Risk Grubu olarak sınıflandırılmıştır. Gelecek ay faturalarında %20 indirim veya Sadakat Kampanyası: Ücretsiz Ekstra 20 GB İnternet tanımlanabilir.
+                                </div>
+                                <button class="action-btn" id="res-action-btn" style="margin-top:10px;">Teklifi Müşteriye Tanımla</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Inject aggregated dashboard metrics from django context -->
+    <script>
+        window.dashboardData = {{ dashboard_data|safe }};
+        
+        // Dynamically update dashboard values on load
+        if (window.dashboardData) {
+            document.getElementById("card-total").textContent = window.dashboardData.total_customers.toLocaleString("tr-TR");
+            
+            // Dinamik olarak son ayın aktif müşteri sayısını al (Aralık 2025: ~77k)
+            let activeCount = window.dashboardData.active_customers;
+            if (window.dashboardData.analytics && 
+                window.dashboardData.analytics.monthly_active && 
+                window.dashboardData.analytics.monthly_active.counts && 
+                window.dashboardData.analytics.monthly_active.counts.length > 0) {
+                const counts = window.dashboardData.analytics.monthly_active.counts;
+                activeCount = counts[counts.length - 1];
+            }
+            document.getElementById("card-active").textContent = activeCount.toLocaleString("tr-TR");
+            
+            document.getElementById("card-high-risk").textContent = "%" + window.dashboardData.high_risk_pct;
+        }
+    </script>
+    <script src="{% static 'chatbot/main.js' %}?v=1.4"></script>
+</body>
+</html>

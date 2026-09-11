@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RAG Chatbot</title>
+    <link rel="icon" href="data:,">
+</head>
+<body>
+    <h1>RAG Müşteri Destek Asistanı</h1>
+
+    <div id="messages"></div>
+
+    <form id="chat-form">
+        {% csrf_token %}
+        <textarea
+            id="message"
+            maxlength="1000"
+            placeholder="Sorunuzu yazın..."
+            required
+        ></textarea>
+
+        <button type="submit">Gönder</button>
+    </form>
+
+    <script>
+        const form = document.getElementById("chat-form");
+        const input = document.getElementById("message");
+        const messages = document.getElementById("messages");
+
+        const csrfToken = form.querySelector(
+            "[name=csrfmiddlewaretoken]"
+        ).value;
+
+        function addMessage(text) {
+            const paragraph = document.createElement("p");
+            paragraph.textContent = text;
+            messages.appendChild(paragraph);
+        }
+
+        form.addEventListener("submit", async event => {
+            event.preventDefault();
+
+            const message = input.value.trim();
+            if (!message) return;
+
+            addMessage(`Sen: ${message}`);
+            input.value = "";
+
+            const response = await fetch(
+                "{% url 'chatbot:send_message' %}",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": csrfToken,
+                    },
+                    body: JSON.stringify({ message }),
+                }
+            );
+
+            const data = await response.json();
+
+            addMessage(
+                `Asistan: ${
+                    data.answer ||
+                    data.error ||
+                    "Yanıt alınamadı."
+                }`
+            );
+        });
+    </script>
+</body>
+</html>
